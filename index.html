@@ -720,7 +720,6 @@
           discountEl.textContent = baseFormula;
           if (discountPct > 0) {
             discountEl.textContent += '\nСкидка ' + formatPrice(discountPct * 100) + '%';
-            if (estimate.fullPriceBase > 0) discountEl.textContent += ' — кроме доставки, людей и команды';
           }
         }
 
@@ -794,7 +793,9 @@
             if (ip) { ip.value = ''; ip.dispatchEvent(new Event('input')); }
             const sc = document.getElementById('shiftCount');
             if (sc) { sc.value = '1'; sc.dispatchEvent(new Event('input')); }
+            customItems = [];
             saveCurrentState();
+            render(byCategory);
           };
         }
         const btnCopyList = document.getElementById('btnCopyList');
@@ -1028,12 +1029,12 @@
               categoryRow: { bold: true, fontSize: 10, fillColor: '#f0f0f0' },
               tableCell: { fontSize: 10 },
               tableCellRight: { fontSize: 10, alignment: 'right' },
-              totalMain: { bold: true, fontSize: 12, margin: [0, 14, 0, 0] },
+              totalMain: { bold: false, fontSize: 10, margin: [0, 14, 0, 0] },
               totalDiscount: { fontSize: 11, color: '#333' },
               summaryLabel: { fontSize: 10, color: '#333' },
               summaryValue: { fontSize: 10, alignment: 'right' },
-              summaryLabelBold: { fontSize: 11, bold: true, color: '#1a1a1a' },
-              summaryValueBold: { fontSize: 11, bold: true, alignment: 'right' }
+              summaryLabelBold: { fontSize: 11, bold: true, color: '#1a1a1a', fillColor: '#eeeeee' },
+              summaryValueBold: { fontSize: 11, bold: true, alignment: 'right', fillColor: '#eeeeee' }
             },
             content: [
               { text: pdfTitle, style: 'header' },

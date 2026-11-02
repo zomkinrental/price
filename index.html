@@ -246,19 +246,6 @@
     .total-wrap .ip-row { display: flex; align-items: center; gap: .4rem; }
     .total-wrap .ip-input { width: 4.5rem; padding: .4rem .5rem; border: 1px solid rgba(255,255,255,.35); border-radius: 6px; background: rgba(255,255,255,.12); color: #fff; font-size: .9375rem; text-align: right; }
     .total-ip { font-size: .875rem; margin-top: .3rem; opacity: .9; }
-    @media (min-width: 521px) {
-      .total-wrap .ip-row { grid-column: 2 / 4; grid-row: 2; justify-content: flex-end; }
-      .total-wrap .total-actions { grid-row: 3 !important; }
-      .total-wrap .total-left { grid-row: 1 / 4 !important; }
-    }
-    @media (max-width: 520px) {
-      .total-wrap .ip-row { grid-column: 2; grid-row: 3; width: 10.75rem; display: grid; grid-template-columns: 4.25rem 3.75rem 1rem; gap: .4rem; justify-self: end; }
-      .total-wrap .ip-input { width: 3.75rem; min-height: 2.25rem; font-size: 1rem; }
-      .total-wrap .total-actions { grid-row: 4 !important; }
-      .total-wrap .total-left { grid-row: 1 / 4 !important; }
-    }
-    @media (max-width: 400px) { .manual-form { grid-template-columns: 1fr; } }
-
     /* Планшеты и десктоп: балансируем нижнюю панель.
        Сумма слева, смены/скидка сверху справа, две кнопки одной строкой под ними. */
     @media (min-width: 521px) {
@@ -415,6 +402,31 @@
     @media (max-width: 400px) and (max-height: 500px) {
       .total-wrap { position: relative; }
     }
+
+    /* Единая сетка параметров: горизонтально на ПК, вертикально на телефоне. */
+    .total-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; }
+    .total-wrap .total-fields { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+    .total-wrap .total-fields > div { display: grid; grid-template-columns: auto minmax(3rem, 4.5rem) 1rem; align-items: center; justify-content: end; gap: .4rem; margin: 0; width: auto; min-width: 0; grid-column: auto; grid-row: auto; align-self: center; justify-self: stretch; }
+    .total-wrap .total-fields label { text-align: left; font-size: .875rem; white-space: nowrap; }
+    .total-wrap .total-fields input { grid-column: 2; width: 100%; min-width: 0; height: 2.5rem; padding: .4rem .5rem; font-size: 1rem; text-align: right; font-variant-numeric: tabular-nums; }
+    .total-wrap .total-fields span { grid-column: 3; font-size: .875rem; }
+    .total-wrap .total-left { grid-column: 1; grid-row: 2; min-width: 0; }
+    .total-wrap .total-actions { grid-column: 2; grid-row: 2; align-self: end; width: 100%; min-width: 0; max-width: none; grid-template-columns: 1fr 1fr; }
+    .total-wrap .sum-discount { line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; }
+    .total-wrap .total-ip { line-height: 1.4; }
+    .total-wrap .btn-copy, .total-wrap .btn-pdf { padding: .6rem .5rem; font-size: .8125rem; }
+    .total-wrap .total-fields input:focus { outline: none; border-color: rgba(255,255,255,.6); background: rgba(255,255,255,.18); }
+    @media (max-width: 520px) {
+      .total-wrap { grid-template-columns: minmax(0, 1fr) auto; gap: .8rem; }
+      .total-wrap .total-left { grid-column: 1; grid-row: 1; }
+      .total-wrap .total-fields { grid-column: 2; grid-row: 1; grid-template-columns: 1fr; gap: .6rem; }
+      .total-wrap .total-fields > div { grid-template-columns: 3.5rem 3.75rem .8rem; gap: .35rem; }
+      .total-wrap .total-fields label, .total-wrap .total-fields span { font-size: .8125rem; }
+      .total-wrap .total-actions { grid-column: 1 / -1; grid-row: 2; grid-template-columns: 1fr; gap: .55rem; }
+      .total-wrap .btn-copy, .total-wrap .btn-pdf { padding: .6rem .75rem; font-size: .875rem; }
+      .total-wrap .sum { font-size: clamp(1.1rem, 5vw, 1.5rem); }
+      .total-wrap .sum-discount, .total-wrap .total-ip { font-size: .75rem; }
+    }
   </style>
   <!-- pdfMake подгружается по клику «Смета (PDF)», чтобы не замедлять первую загрузку -->
 </head>
@@ -554,10 +566,34 @@
         }
       }
 
+      function readNumber(value, fallback, min, max) {
+        const text = String(value == null ? '' : value).trim().replace(/\s/g, '').replace(',', '.');
+        const parsed = text === '' ? NaN : Number(text);
+        return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+      }
       function getIpPct() {
-        const input = document.getElementById('ipPct');
-        const value = input ? parseFloat(String(input.value).replace(',', '.')) : 0;
-        return Number.isFinite(value) ? Math.min(99.99, Math.max(0, value)) : 0;
+        return readNumber((document.getElementById('ipPct') || {}).value, 0, 0, 99.99);
+      }
+      function getDiscountPct() {
+        return readNumber((document.getElementById('discountPct') || {}).value, 0, 0, 100) / 100;
+      }
+      function getShiftCount() {
+        return readNumber((document.getElementById('shiftCount') || {}).value, 1, 1, 1000000);
+      }
+      function categoryWithoutDiscount(category) {
+        return ['доставка', 'люди', 'команда'].includes(String(category || '').normalize('NFKC').trim().toLocaleLowerCase('ru-RU'));
+      }
+      function roundMoney(amount) {
+        return Math.round((amount + Number.EPSILON) * 100) / 100;
+      }
+      function calculateEstimate(rows, shifts, discountPct, ipPct) {
+        const discountedBase = rows.reduce(function (sum, row) { return sum + (categoryWithoutDiscount(row.category) ? 0 : row.sum); }, 0);
+        const fullPriceBase = rows.reduce(function (sum, row) { return sum + (categoryWithoutDiscount(row.category) ? row.sum : 0); }, 0);
+        const base = discountedBase + fullPriceBase;
+        const totalBeforeDiscount = roundMoney(base * shifts);
+        const totalWithDiscount = roundMoney((discountedBase * (1 - discountPct) + fullPriceBase) * shifts);
+        return { base, discountedBase, fullPriceBase, totalBeforeDiscount, totalWithDiscount,
+          totalIp: roundMoney(totalWithDiscount / ((100 - ipPct) / 100)) };
       }
       let customItems = (function () {
         const saved = loadSavedState();
@@ -629,10 +665,10 @@
         html += '<details class="manual-add"><summary>Добавить позицию вручную</summary><form class="manual-form" id="manualForm"><label>Название<input id="manualName" required maxlength="200" placeholder="Название позиции"></label><label>Категория<input id="manualCategory" list="categoryOptions" required maxlength="100" placeholder="Выберите или введите"></label><datalist id="categoryOptions">' + categories.map(function (cat) { return '<option value="' + escapeHtml(cat) + '"></option>'; }).join('') + '</datalist><label>Цена за смену, ₽<input id="manualPrice" type="number" min="0" step="0.01" required placeholder="0"></label><label>Количество<input id="manualQty" type="number" min="1" step="1" value="1" required></label><button type="submit" class="btn-clear">Добавить в расчёт</button></form></details>';
         html += '<div class="total-wrap">';
         html += '<div class="total-left"><div class="label">Итого</div><div class="sum" id="totalSum" role="status" aria-live="polite">0 ₽</div><div class="sum-discount" id="totalSumDiscount" style="display: none;"></div><div class="total-ip" id="totalIp" style="display: none;"></div></div>';
-        html += '<div class="shifts-row"><label class="label" for="shiftCount">Смен</label><input type="number" min="1" step="0.5" value="1" class="shifts-input" id="shiftCount"></div>';
+        html += '<div class="total-fields"><div class="shifts-row"><label class="label" for="shiftCount">Смен</label><input type="number" min="1" step="0.5" value="1" class="shifts-input" id="shiftCount"></div>';
         html += '<div class="discount-row"><label class="label" for="discountPct">Скидка</label><input type="number" min="0" max="100" step="0.5" placeholder="0" class="discount-input" id="discountPct"> <span class="label">%</span></div>';
         html += '<div class="ip-row"><label class="label" for="ipPct">ИП</label><input type="number" min="0" max="99.99" step="0.01" placeholder="0" class="ip-input" id="ipPct"> <span class="label">%</span></div>';
-        html += '<div class="total-actions"><button type="button" class="btn-pdf" id="btnPdf">Смета (PDF)</button><button type="button" class="btn-copy" id="btnCopyList">Список текстом</button></div></div>';
+        html += '</div><div class="total-actions"><button type="button" class="btn-pdf" id="btnPdf">Смета (PDF)</button><button type="button" class="btn-copy" id="btnCopyList">Список текстом</button></div></div>';
         contentEl.innerHTML = html;
         document.getElementById('manualForm').addEventListener('submit', function (event) {
           event.preventDefault();
@@ -668,50 +704,23 @@
         const savedProjectDate = document.getElementById('projectDate');
         if (savedProjectDate && savedState.projectDate) savedProjectDate.value = savedState.projectDate;
 
-        function getDiscountPct() {
-          const el = document.getElementById('discountPct');
-          if (!el) return 0;
-          const v = parseFloat(String(el.value).replace(',', '.')) || 0;
-          return Math.min(100, Math.max(0, v)) / 100;
-        }
-
-        function getShiftCount() {
-          const el = document.getElementById('shiftCount');
-          if (!el) return 1;
-          const v = parseFloat(String(el.value).replace(',', '.')) || 1;
-          return Math.max(1, v);
-        }
-
         function updateTotal() {
-          let sum = 0;
-          inputs.forEach(({ id, price }) => {
-            const el = document.getElementById(id);
-            if (el) sum += (parseInt(el.value, 10) || 0) * price;
-          });
-
+          const rows = collectSelectedRows();
           const shifts = getShiftCount();
           const discountPct = getDiscountPct();
-          const totalBeforeDiscount = sum * shifts;
-          const totalWithDiscount = totalBeforeDiscount * (1 - discountPct);
-
           const ipPct = getIpPct();
+          const estimate = calculateEstimate(rows, shifts, discountPct, ipPct);
           const ipEl = document.getElementById('totalIp');
           ipEl.style.display = ipPct > 0 ? 'block' : 'none';
-          ipEl.textContent = ipPct > 0 ? 'При оплате на ИП: ' + formatPrice(totalWithDiscount / ((100 - ipPct) / 100)) + ' ₽' : '';
-          const totalEl = document.getElementById('totalSum');
-          if (totalEl) totalEl.textContent = formatPrice(totalWithDiscount) + ' ₽';
-
+          ipEl.textContent = ipPct > 0 ? 'При оплате на ИП: ' + formatPrice(estimate.totalIp) + ' ₽' : '';
+          document.getElementById('totalSum').textContent = formatPrice(estimate.totalWithDiscount) + ' ₽';
           const discountEl = document.getElementById('totalSumDiscount');
-          if (discountEl) {
-            if (sum > 0) {
-              const baseFormula = formatPrice(sum) + ' ₽ × ' + shifts + ' = ' + formatPrice(totalBeforeDiscount) + ' ₽';
-              discountEl.textContent = discountPct > 0
-                ? baseFormula + ' − ' + formatPrice(discountPct * 100) + '% = ' + formatPrice(totalWithDiscount) + ' ₽'
-                : baseFormula;
-              discountEl.style.display = 'block';
-            } else {
-              discountEl.style.display = 'none';
-            }
+          discountEl.style.display = estimate.base > 0 ? 'block' : 'none';
+          const baseFormula = formatPrice(estimate.base) + ' ₽ × ' + formatPrice(shifts) + ' = ' + formatPrice(estimate.totalBeforeDiscount) + ' ₽';
+          discountEl.textContent = baseFormula;
+          if (discountPct > 0) {
+            discountEl.textContent += '\nСкидка ' + formatPrice(discountPct * 100) + '%';
+            if (estimate.fullPriceBase > 0) discountEl.textContent += ' — кроме доставки, людей и команды';
           }
         }
 
@@ -839,7 +848,7 @@
             const qty = parseInt(input.value, 10) || 0;
             if (qty <= 0) return;
             const name = (nameEl.childNodes[0] && nameEl.childNodes[0].textContent) ? nameEl.childNodes[0].textContent.trim() : nameEl.textContent.trim().split('\n')[0];
-            const price = parseFloat(priceEl.textContent.replace(/\s/g, '').replace(',', '.').replace(/[^\d.]/g, '')) || 0;
+            const price = readNumber(input.dataset.price, 0, 0, Number.MAX_SAFE_INTEGER);
             const sum = qty * price;
             rows.push({ category: catName.textContent.trim(), name: name, qty: qty, price: price, sum: sum });
           });
@@ -911,25 +920,15 @@
 
       function downloadPdf(formatPrice) {
         const rows = collectSelectedRows();
-        let total = rows.reduce(function (acc, row) { return acc + row.sum; }, 0);
         if (rows.length === 0) {
           alert('Отметьте хотя бы одну позицию с количеством больше 0.');
           return;
         }
-        let discountPct = 0;
-        const discountInput = document.getElementById('discountPct');
-        if (discountInput) {
-          const v = parseFloat(String(discountInput.value).replace(',', '.')) || 0;
-          discountPct = Math.min(100, Math.max(0, v)) / 100;
-        }
-        let shiftCount = 1;
-        const shiftInput = document.getElementById('shiftCount');
-        if (shiftInput) {
-          const v = parseFloat(String(shiftInput.value).replace(',', '.')) || 1;
-          shiftCount = Math.max(1, v);
-        }
-        const totalForShifts = total * shiftCount;
-        const totalWithDiscount = totalForShifts * (1 - discountPct);
+        const discountPct = getDiscountPct();
+        const shiftCount = getShiftCount();
+        const estimate = calculateEstimate(rows, shiftCount, discountPct, getIpPct());
+        const totalForShifts = estimate.totalBeforeDiscount;
+        const totalWithDiscount = estimate.totalWithDiscount;
         let projectName = '';
         const projectInput = document.getElementById('projectName');
         if (projectInput) projectName = (projectInput.value || '').trim();
@@ -996,7 +995,7 @@
                   ],
                   ...(getIpPct() > 0 ? [[
                     { text: 'При оплате на ИП', style: 'summaryLabel' },
-                    { text: formatPrice(totalWithDiscount / ((100 - getIpPct()) / 100)) + ' ₽', style: 'summaryValue' }
+                    { text: formatPrice(estimate.totalIp) + ' ₽', style: 'summaryValue' }
                   ]] : [])
                 ]
               },
@@ -1077,7 +1076,7 @@
       function escapeHtml(s) {
         const div = document.createElement('div');
         div.textContent = s;
-        return div.innerHTML;
+        return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       }
 
       const fetchOptions = { cache: 'no-store', mode: 'cors' };
